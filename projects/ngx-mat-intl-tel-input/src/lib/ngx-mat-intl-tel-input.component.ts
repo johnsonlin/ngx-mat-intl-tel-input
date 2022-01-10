@@ -1,13 +1,15 @@
 /* eslint-disable @typescript-eslint/member-ordering, no-underscore-dangle, id-blacklist,
 id-match, @typescript-eslint/naming-convention */
 
-import {MatFormFieldControl} from '@angular/material/form-field';
+import { MatFormFieldControl } from '@angular/material/form-field';
 import {
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
   Component,
   DoCheck,
   ElementRef,
   EventEmitter,
-  HostBinding,
+  HostBinding, Inject,
   Input,
   OnDestroy,
   OnInit,
@@ -15,23 +17,30 @@ import {
   Output,
   Self,
   ViewChild,
-  ChangeDetectionStrategy,
-  ChangeDetectorRef
 } from '@angular/core';
 
-import {FormGroupDirective, NG_VALIDATORS, NgControl, NgForm} from '@angular/forms';
-import {CountryCode, Examples} from './data/country-code';
-import {phoneNumberValidator} from './ngx-mat-intl-tel-input.validator';
-import {Country} from './model/country.model';
-import {PhoneNumberFormat} from './model/phone-number-format.model';
-import {AsYouType, CountryCode as CC, E164Number, getExampleNumber, parsePhoneNumberFromString, PhoneNumber} from 'libphonenumber-js';
+import { FormGroupDirective, NG_VALIDATORS, NgControl, NgForm } from '@angular/forms';
+import { CountryCode, Examples } from './data/country-code';
+import { PhoneNumberValidator } from './ngx-mat-intl-tel-input.validator';
+import { Country } from './model/country.model';
+import { PhoneNumberFormat } from './model/phone-number-format.model';
+import {
+  AsYouType,
+  CountryCode as CC,
+  E164Number,
+  getExampleNumber,
+  parsePhoneNumberFromString,
+  PhoneNumber,
+} from 'libphonenumber-js';
+import { parsePhoneNumberFromString as parseMobileNumberFromString } from 'libphonenumber-js/mobile';
 
-import {coerceBooleanProperty} from '@angular/cdk/coercion';
-import {Subject} from 'rxjs';
-import {FocusMonitor} from '@angular/cdk/a11y';
-import {CanUpdateErrorState, ErrorStateMatcher, mixinErrorState} from '@angular/material/core';
-import {MatMenu} from '@angular/material/menu';
+import { coerceBooleanProperty } from '@angular/cdk/coercion';
+import { Subject } from 'rxjs';
+import { FocusMonitor } from '@angular/cdk/a11y';
+import { CanUpdateErrorState, ErrorStateMatcher, mixinErrorState } from '@angular/material/core';
+import { MatMenu } from '@angular/material/menu';
 import { AbstractConstructor, Constructor } from '@angular/material/core/common-behaviors/constructor';
+import { NGX_MAT_INTL_TEL_INPUT_CONFIG, NgxMatIntlTelInputConfig } from './ngx-mat-intl-tel-input.config';
 
 class NgxMatIntlTelInputBase {
   constructor(public _defaultErrorStateMatcher: ErrorStateMatcher,
@@ -57,7 +66,8 @@ const _NgxMatIntlTelInputMixinBase: CanUpdateErrorStateCtor & typeof NgxMatIntlT
     {provide: MatFormFieldControl, useExisting: NgxMatIntlTelInputComponent},
     {
       provide: NG_VALIDATORS,
-      useValue: phoneNumberValidator,
+      useFactory: (config) => new PhoneNumberValidator(config),
+      deps: [NGX_MAT_INTL_TEL_INPUT_CONFIG],
       multi: true,
     }
   ],
@@ -129,6 +139,7 @@ export class NgxMatIntlTelInputComponent extends _NgxMatIntlTelInputMixinBase
     private countryCodeData: CountryCode,
     private fm: FocusMonitor,
     private elRef: ElementRef<HTMLElement>,
+    @Optional() @Inject(NGX_MAT_INTL_TEL_INPUT_CONFIG) private config: NgxMatIntlTelInputConfig,
     @Optional() @Self() public ngControl: NgControl,
     @Optional() _parentForm: NgForm,
     @Optional() _parentFormGroup: FormGroupDirective,
@@ -184,7 +195,11 @@ export class NgxMatIntlTelInputComponent extends _NgxMatIntlTelInputMixinBase
 
   public onPhoneNumberChange(): void {
     try {
-      this.numberInstance = parsePhoneNumberFromString(this.phoneNumber.toString(), this.selectedCountry.iso2.toUpperCase() as CC);
+      this.numberInstance = (
+        this.config.mobileOnly
+          ? parseMobileNumberFromString
+          : parsePhoneNumberFromString
+      )(this.phoneNumber.toString(), this.selectedCountry.iso2.toUpperCase() as CC);
       this.formatAsYouTypeIfEnabled();
       this.value = this.numberInstance.number;
       if (this.numberInstance && this.numberInstance.isValid()) {
@@ -206,7 +221,7 @@ export class NgxMatIntlTelInputComponent extends _NgxMatIntlTelInputMixinBase
   }
 
   public onCountrySelect(country: Country, el): void {
-    if (this.phoneNumber) {
+    if (this.numberInstance) {
       this.phoneNumber = this.numberInstance.nationalNumber;
     }
     this.selectedCountry = country;

@@ -30,7 +30,15 @@ Add ```NgxMatIntlTelInputModule``` to your module file:
 
 imports: [
     NgxMatIntlTelInputModule,
-  ]
+]
+
+```
+If you want to configure ```NgxMatIntlTelInputModule``` to validate mobile number only, you can use this:
+```javascript
+
+imports: [
+    NgxMatIntlTelInputModule.forRoot({ mobileOnly: true }),
+]
 
 ```
 
